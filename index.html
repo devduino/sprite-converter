@@ -169,7 +169,6 @@ document.getElementById('save').addEventListener('click', function() {
 	encodedData.push("\n\n");
 
 	encodedData.push("#include \"DevduinoSprite.h\"\n\n");
-
 	
 	encodedData.push("static const uint8_t ");
 	encodedData.push(targetFileName);
@@ -200,7 +199,7 @@ document.getElementById('save').addEventListener('click', function() {
 
 	encodedData.push("DevduinoSprite ");
 	encodedData.push(targetFileName);
-	encodedData.push("(");
+	encodedData.push("((uint8_t*) ");
 	encodedData.push(targetFileName);
 	encodedData.push("Buffer, ");
 	encodedData.push(currentWidth);
