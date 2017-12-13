@@ -6,8 +6,8 @@
 <div>Source image URL (required): <input id="sourceFile" type="file"></input></div>
 <div><input id="autoScale" type="checkbox" checked disabled>Auto-scale</input></div>
 <div><input id="keepAspectRatio" type="checkbox" checked disabled>Keep aspect-ratio</input></div>
-<div>Target width (leave blanck for same width as source image): <input id="targetWidth" type="number" value="16" min="1" max="128" disabled></input></div>
-<div>Target height (leave blanck for same height as source image): <input id="targetHeight" type="number" value="16" min="1" max="64" value="16" disabled></input></div>
+<div>Target width: <input id="targetWidth" type="number" value="16" min="1" max="128" disabled></input></div>
+<div>Target height: <input id="targetHeight" type="number" value="16" min="1" max="64" value="16" disabled></input></div>
 <br/>
 <div>
 	Target image name (leave blanck for same name as source image): <input id="targetFile" type="text" disabled></input>
@@ -149,9 +149,39 @@ document.getElementById('save').addEventListener('click', function() {
 		data[i] = pixels[i * 4]==0?0:1;
 	}
 
+	var targetFileName = document.getElementById('targetFile').value;
+
+	//If no file name required, construct it from source file name.
+	if(targetFileName == '') {
+		targetFileName = document.getElementById('sourceFile').value;
+		targetFileName = targetFileName.split(/(\\|\/)/g).pop();
+		targetFileName = targetFileName.substring(0, targetFileName.lastIndexOf('.'));
+		targetFileName += "Sprite";
+	}
+
 	var encodedData = [];
+
+	encodedData.push("#ifndef DEVDUINO_");
+	encodedData.push(targetFileName.toUpperCase());
+	encodedData.push("\n");
+	encodedData.push("#define DEVDUINO_");
+	encodedData.push(targetFileName.toUpperCase());
+	encodedData.push("\n\n");
+
+	encodedData.push("#include \"DevduinoSprite.h\"\n\n");
+
+	
+	encodedData.push("static const uint8_t ");
+	encodedData.push(targetFileName);
+	encodedData.push("Buffer[");
+	encodedData.push(currentHeight / 8);
+	encodedData.push("][");
+	encodedData.push(currentWidth);
+	encodedData.push("] PROGMEM = {\n");
+
 	//Loop over data to construct encoded one.
 	for(var y = 0; y < currentHeight; y+=8) {
+		encodedData.push("\t{");
 		for(var x = 0; x < currentWidth; x++) {
 			var encodedValue = 0;
 			for(var currentY = y; currentY < y + 8; currentY++) {
@@ -159,22 +189,35 @@ document.getElementById('save').addEventListener('click', function() {
 			}
 			encodedData.push("0x" + encodedValue.toString(16).toUpperCase() + ", ");
 		}
+		encodedData.push("}");
+		if(y + 8 < currentHeight) {
+			encodedData.push(",");
+		}
 		encodedData.push("\n");
 	}
+
+	encodedData.push("};\n\n");
+
+	encodedData.push("DevduinoSprite ");
+	encodedData.push(targetFileName);
+	encodedData.push("(");
+	encodedData.push(targetFileName);
+	encodedData.push("Buffer, ");
+	encodedData.push(currentWidth);
+	encodedData.push(", ");
+	encodedData.push(currentHeight / 8);
+	encodedData.push(");\n\n");
+
+	encodedData.push("#endif //DEVDUINO_");
+	encodedData.push(targetFileName.toUpperCase());
 	
 	var blob = new Blob(encodedData, {type: "application/octet-stream"});
 	var url = window.URL.createObjectURL(blob);
 	var a = document.createElement("a");
 	a.style = "display: none";
 	a.href = url;
+	a.download = targetFileName + ".h";
 
-	if(document.getElementById('targetFile').value == '') {
-		var targetFileName = document.getElementById('sourceFile').value;
-		targetFileName = targetFileName.split(/(\\|\/)/g).pop();
-		a.download = targetFileName.substring(0, targetFileName.lastIndexOf('.')) + ".h";
-	} else {
-		a.download = document.getElementById('targetFile') + ".h";
-	}
 	console.log("Saving to file named: " + a.download);
 	
 	document.body.appendChild(a);
