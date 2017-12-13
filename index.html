@@ -34,20 +34,16 @@ function render() {
 				var heightRatio = sourceImage.height / canvas.height;
 
 				if(widthRatio > heightRatio) {
-					currentWidth = sourceImage.width / widthRatio;
-					currentHeight = sourceImage.width / widthRatio;
-
-					context.drawImage(sourceImage, 
-						0, 0,  
-						sourceImage.width / widthRatio, sourceImage.height / widthRatio);
+					currentWidth = Math.ceil(sourceImage.width / widthRatio);
+					currentHeight = Math.ceil(sourceImage.height / widthRatio);
 				} else {
-					currentWidth = sourceImage.width / heightRatio;
-					currentHeight = sourceImage.height / heightRatio;
-
-					context.drawImage(sourceImage, 
-						0, 0,  
-						sourceImage.width / heightRatio, sourceImage.height / heightRatio);
+					currentWidth = Math.ceil(sourceImage.width / heightRatio);
+					currentHeight = Math.ceil(sourceImage.height / heightRatio);
 				}
+				
+				context.drawImage(sourceImage, 
+					0, 0,  
+					currentWidth, currentHeight);
 			} else {
 				currentWidth = canvas.width;
 				currentHeight = canvas.height;
@@ -173,7 +169,7 @@ document.getElementById('save').addEventListener('click', function() {
 	encodedData.push("static const uint8_t ");
 	encodedData.push(targetFileName);
 	encodedData.push("Buffer[");
-	encodedData.push(currentHeight / 8);
+	encodedData.push(Math.ceil(currentHeight / 8));
 	encodedData.push("][");
 	encodedData.push(currentWidth);
 	encodedData.push("] PROGMEM = {\n");
@@ -204,7 +200,7 @@ document.getElementById('save').addEventListener('click', function() {
 	encodedData.push("Buffer, ");
 	encodedData.push(currentWidth);
 	encodedData.push(", ");
-	encodedData.push(currentHeight / 8);
+	encodedData.push(Math.ceil(currentHeight / 8));
 	encodedData.push(");\n\n");
 
 	encodedData.push("#endif //DEVDUINO_");
