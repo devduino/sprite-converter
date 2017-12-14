@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html>
+<head>
+</head>
+<body>
+<div>Source image URL (required): <input id="sourceFile" type="file"></input></div>
+<div>
+<input id="autoScale" type="checkbox" checked disabled>Auto-scale</input>
+<input id="autoKeepAspectRatio" type="checkbox" checked disabled>Keep aspect-ratio</input></div>
+<div>
+Target width: <input id="targetWidth" type="number" value="128" min="1" max="128" disabled></input>
+Target height: <input id="targetHeight" type="number" value="64" min="1" max="64" value="16" disabled></input>
+<input id="manualKeepAspectRatio" type="checkbox" checked disabled>Keep aspect-ratio</input>
+</div>
+<br/>
+<div>
+	Target image name (leave blanck for same name as source image): <input id="targetFile" type="text" disabled></input>
+	<button id="save" type="button" disabled>save</button>
+</div>
+<br/>
+<div>
+	Devduino preview: <canvas id="preview" width="128" height="64"></canvas>
+</div>
+<script>
+var sourceImage = undefined;
+
+function render() {
+	var canvas = document.getElementById('preview');
+	var context = canvas.getContext("2d");
+	context.clearRect(0, 0, canvas.width, canvas.height);
+
+	var currentWidth = document.getElementById("targetWidth").value;
+	var currentHeight = document.getElementById("targetHeight").value;
+
+	context.drawImage(sourceImage, 
+		0, 0,
+		currentWidth, currentHeight);
+
+	//Put into b&w.
+	var imageData = context.getImageData(0, 0, currentWidth, currentHeight);
+	var pixels  = imageData.data;
+	for (var i = 0, n = pixels.length; i < n; i += 4) {
+		var grayscale = pixels[i] * 0.3 + pixels[i+1] * 0.59 + pixels[i+2] * 0.11;
+		var blackOrWhite = (grayscale < 127)?0:255;
+		pixels[i  ] = blackOrWhite;
+		pixels[i+1] = blackOrWhite;
+		pixels[i+2] = blackOrWhite;
+	}
+
+	//redraw the image in black & white
+	context.putImageData(imageData, 0, 0);
+}
+
+function updateWidthHeightRatio() {
+	var canvas = document.getElementById('preview');
+	var context = canvas.getContext("2d");
+
+	var widthRatio = sourceImage.width / canvas.width;
+	var heightRatio = sourceImage.height / canvas.height;
+
+	var currentWidth;
+	var currentHeight;
+
+	if(widthRatio > heightRatio) {
+		currentWidth = Math.ceil(sourceImage.width / widthRatio);
+		currentHeight = Math.ceil(sourceImage.height / widthRatio);
+	} else {
+		currentWidth = Math.ceil(sourceImage.width / heightRatio);
+		currentHeight = Math.ceil(sourceImage.height / heightRatio);
+	}
+
+	document.getElementById("targetWidth").value = currentWidth;
+	document.getElementById("targetHeight").value = currentHeight;
+}
+
+function updateWidthHeightFull() {
+	document.getElementById("targetWidth").value = 128;
+	document.getElementById("targetHeight").value = 64;
+}
+
+document.getElementById('sourceFile').addEventListener('change', function(e) {
+	document.getElementById("save").disabled = true;
+	
+	sourceImage = new Image();
+	sourceImage.addEventListener("load", function() {
+		document.getElementById("save").disabled = false;
+		document.getElementById("autoScale").disabled = false;
+		document.getElementById("autoKeepAspectRatio").disabled = false;
+		document.getElementById("targetFile").disabled = false;
+	
+		updateWidthHeightRatio();
+		render();
+	});
+	
+	sourceImage.src = URL.createObjectURL(document.getElementById('sourceFile').files[0]);
+}, false);
+
+document.getElementById('autoScale').addEventListener('change', function() {	
+	if(document.getElementById("autoScale").checked) {
+		document.getElementById("autoKeepAspectRatio").disabled = false;
+		document.getElementById("targetWidth").disabled = true;
+		document.getElementById("targetHeight").disabled = true;
+		document.getElementById("manualKeepAspectRatio").disabled = true;
+		if(document.getElementById("autoKeepAspectRatio").checked) {
+			updateWidthHeightRatio();
+		} else {
+			updateWidthHeightFull();
+		}
+	} else {
+		document.getElementById("autoKeepAspectRatio").disabled = true;
+		document.getElementById("targetWidth").disabled = false;
+		document.getElementById("manualKeepAspectRatio").disabled = false;
+		if(document.getElementById("manualKeepAspectRatio").checked) {
+			updateWidthHeightRatio();
+		} else {
+			document.getElementById("targetHeight").disabled = false;
+		}
+	}
+
+	render();
+}, false);
+
+document.getElementById("autoKeepAspectRatio").addEventListener('change', function() {
+	if(document.getElementById("autoKeepAspectRatio").checked) {
+		updateWidthHeightRatio();
+	} else {
+		updateWidthHeightFull();
+	}
+
+	render();
+}, false);
+
+document.getElementById("manualKeepAspectRatio").addEventListener('change', function() {
+	if(document.getElementById("manualKeepAspectRatio").checked) {
+		document.getElementById("targetHeight").disabled = true;
+		updateWidthHeightRatio();
+	} else {
+		document.getElementById("targetHeight").disabled = false;
+	}
+
+	render();
+}, false);
+
+document.getElementById('targetWidth').addEventListener('input', function() {
+	var width = document.getElementById("targetWidth").value;
+
+	if(width > 128) {
+		document.getElementById("targetWidth").value = 128;
+	}
+
+	if(width < 0) {
+		document.getElementById("targetWidth").value = 0;
+	}
+
+	if(document.getElementById("manualKeepAspectRatio").checked) {
+		var widthHeightRatio = sourceImage.width / sourceImage.height;
+		var possibleHeight = Math.round(document.getElementById("targetWidth").value / widthHeightRatio);
+
+		if(possibleHeight <= 64) {
+			document.getElementById("targetHeight").value = possibleHeight;
+		} else {
+			document.getElementById("targetWidth").value = Math.round(64 * widthHeightRatio);
+		}
+	}
+
+	render();
+}, false);
+
+document.getElementById('targetHeight').addEventListener('input', function() {
+	var height = document.getElementById("targetHeight").value;
+
+	if(height > 64) {
+		document.getElementById("targetHeight").value = 64;
+	}
+
+	if(height < 0) {
+		document.getElementById("targetheight").value = 0;
+	}
+
+	render();
+}, false);
+
+document.getElementById('save').addEventListener('click', function() {	
+	var data = [];
+
+	var currentWidth = document.getElementById("targetWidth").value;
+	var currentHeight = document.getElementById("targetHeight").value;
+	
+	var canvas = document.getElementById("preview");
+	var context = canvas.getContext("2d");
+	var imageData = context.getImageData(0, 0, currentWidth, currentHeight);
+	var pixels = imageData.data;
+
+	// Loop over each pixel.
+	for (var i = 0; i < pixels.length / 4; i++) {
+		//Get any of the 3 components because its black and white.
+		data[i] = pixels[i * 4]==0?0:1;
+	}
+
+	var targetFileName = document.getElementById('targetFile').value;
+
+	//If no file name required, construct it from source file name.
+	if(targetFileName == '') {
+		targetFileName = document.getElementById('sourceFile').value;
+		targetFileName = targetFileName.split(/(\\|\/)/g).pop();
+		targetFileName = targetFileName.substring(0, targetFileName.lastIndexOf('.'));
+		targetFileName += "Sprite";
+	}
+
+	var encodedData = [];
+
+	encodedData.push("#ifndef DEVDUINO_");
+	encodedData.push(targetFileName.toUpperCase());
+	encodedData.push("\n");
+	encodedData.push("#define DEVDUINO_");
+	encodedData.push(targetFileName.toUpperCase());
+	encodedData.push("\n\n");
+
+	encodedData.push("#include \"DevduinoSprite.h\"\n\n");
+	
+	encodedData.push("static const uint8_t ");
+	encodedData.push(targetFileName);
+	encodedData.push("Buffer[");
+	encodedData.push(Math.ceil(currentHeight / 8));
+	encodedData.push("][");
+	encodedData.push(currentWidth);
+	encodedData.push("] PROGMEM = {\n");
+
+	//Loop over data to construct encoded one.
+	for(var y = 0; y < currentHeight; y+=8) {
+		encodedData.push("\t{");
+		for(var x = 0; x < currentWidth; x++) {
+			var encodedValue = 0;
+			for(var currentY = y; currentY < y + 8; currentY++) {
+				encodedValue = (encodedValue << 1) | data[(currentY * currentWidth) + x];
+			}
+			encodedData.push("0x" + encodedValue.toString(16).toUpperCase());
+			
+			if(x < currentWidth - 1) {
+				encodedData.push(", ");
+			}
+		}
+		encodedData.push("}");
+		if(y + 8 < currentHeight) {
+			encodedData.push(",");
+		}
+		encodedData.push("\n");
+	}
+
+	encodedData.push("};\n\n");
+
+	encodedData.push("DevduinoSprite ");
+	encodedData.push(targetFileName);
+	encodedData.push("((uint8_t*) ");
+	encodedData.push(targetFileName);
+	encodedData.push("Buffer, ");
+	encodedData.push(currentWidth);
+	encodedData.push(", ");
+	encodedData.push(Math.ceil(currentHeight / 8));
+	encodedData.push(");\n\n");
+
+	encodedData.push("#endif //DEVDUINO_");
+	encodedData.push(targetFileName.toUpperCase());
+	
+	var blob = new Blob(encodedData, {type: "application/octet-stream"});
+	var url = window.URL.createObjectURL(blob);
+	var a = document.createElement("a");
+	a.style = "display: none";
+	a.href = url;
+	a.download = targetFileName + ".h";
+	
+	document.body.appendChild(a);
+	a.click();
+	window.URL.revokeObjectURL(url);
+}, false);
+</script>
+</body>
+</html>
