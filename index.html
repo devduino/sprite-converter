@@ -4,10 +4,14 @@
 </head>
 <body>
 <div>Source image URL (required): <input id="sourceFile" type="file"></input></div>
-<div><input id="autoScale" type="checkbox" checked disabled>Auto-scale</input></div>
-<div><input id="keepAspectRatio" type="checkbox" checked disabled>Keep aspect-ratio</input></div>
-<div>Target width: <input id="targetWidth" type="number" value="16" min="1" max="128" disabled></input></div>
-<div>Target height: <input id="targetHeight" type="number" value="16" min="1" max="64" value="16" disabled></input></div>
+<div>
+<input id="autoScale" type="checkbox" checked disabled>Auto-scale</input>
+<input id="autoKeepAspectRatio" type="checkbox" checked disabled>Keep aspect-ratio</input></div>
+<div>
+Target width: <input id="targetWidth" type="number" value="128" min="1" max="128" disabled></input>
+Target height: <input id="targetHeight" type="number" value="64" min="1" max="64" value="16" disabled></input>
+<input id="manualKeepAspectRatio" type="checkbox" checked disabled>Keep aspect-ratio</input>
+</div>
 <br/>
 <div>
 	Target image name (leave blanck for same name as source image): <input id="targetFile" type="text" disabled></input>
@@ -19,120 +23,168 @@
 </div>
 <script>
 var sourceImage = undefined;
-var currentWidth = 0;
-var currentHeight = 0;
 
 function render() {
-	if(sourceImage != undefined) {
-		var canvas = document.getElementById('preview');
-		var context = canvas.getContext("2d");
-		context.clearRect(0, 0, canvas.width, canvas.height);
+	var canvas = document.getElementById('preview');
+	var context = canvas.getContext("2d");
+	context.clearRect(0, 0, canvas.width, canvas.height);
 
-		if(document.getElementById('autoScale').checked) {
-			if(document.getElementById('keepAspectRatio').checked) {
-				var widthRatio = sourceImage.width / canvas.width;
-				var heightRatio = sourceImage.height / canvas.height;
+	var currentWidth = document.getElementById("targetWidth").value;
+	var currentHeight = document.getElementById("targetHeight").value;
 
-				if(widthRatio > heightRatio) {
-					currentWidth = Math.ceil(sourceImage.width / widthRatio);
-					currentHeight = Math.ceil(sourceImage.height / widthRatio);
-				} else {
-					currentWidth = Math.ceil(sourceImage.width / heightRatio);
-					currentHeight = Math.ceil(sourceImage.height / heightRatio);
-				}
-				
-				context.drawImage(sourceImage, 
-					0, 0,  
-					currentWidth, currentHeight);
-			} else {
-				currentWidth = canvas.width;
-				currentHeight = canvas.height;
+	context.drawImage(sourceImage, 
+		0, 0,
+		currentWidth, currentHeight);
 
-				context.drawImage(sourceImage,
-					0, 0, 
-					canvas.width, canvas.height);
-			}
-		} else {
-			currentWidth = document.getElementById('targetWidth').value;
-			currentHeight = document.getElementById('targetHeight').value;
-
-			context.drawImage(sourceImage, 
-				0, 0,
-				currentWidth, currentHeight);
-		}
-
-		//Put into b&w.
-		var imageData = context.getImageData(0, 0, currentWidth, currentHeight);
-		var pixels  = imageData.data;
-		for (var i = 0, n = pixels.length; i < n; i += 4) {
-			var grayscale = pixels[i] * 0.3 + pixels[i+1] * 0.59 + pixels[i+2] * 0.11;
-			var blackOrWhite = (grayscale < 127)?0:255;
-			pixels[i  ] = blackOrWhite;
-			pixels[i+1] = blackOrWhite;
-			pixels[i+2] = blackOrWhite;
-		}
-
-		//redraw the image in black & white
-		context.putImageData(imageData, 0, 0);
+	//Put into b&w.
+	var imageData = context.getImageData(0, 0, currentWidth, currentHeight);
+	var pixels  = imageData.data;
+	for (var i = 0, n = pixels.length; i < n; i += 4) {
+		var grayscale = pixels[i] * 0.3 + pixels[i+1] * 0.59 + pixels[i+2] * 0.11;
+		var blackOrWhite = (grayscale < 127)?0:255;
+		pixels[i  ] = blackOrWhite;
+		pixels[i+1] = blackOrWhite;
+		pixels[i+2] = blackOrWhite;
 	}
+
+	//redraw the image in black & white
+	context.putImageData(imageData, 0, 0);
+}
+
+function updateWidthHeightRatio() {
+	var canvas = document.getElementById('preview');
+	var context = canvas.getContext("2d");
+
+	var widthRatio = sourceImage.width / canvas.width;
+	var heightRatio = sourceImage.height / canvas.height;
+
+	var currentWidth;
+	var currentHeight;
+
+	if(widthRatio > heightRatio) {
+		currentWidth = Math.ceil(sourceImage.width / widthRatio);
+		currentHeight = Math.ceil(sourceImage.height / widthRatio);
+	} else {
+		currentWidth = Math.ceil(sourceImage.width / heightRatio);
+		currentHeight = Math.ceil(sourceImage.height / heightRatio);
+	}
+
+	document.getElementById("targetWidth").value = currentWidth;
+	document.getElementById("targetHeight").value = currentHeight;
+}
+
+function updateWidthHeightFull() {
+	document.getElementById("targetWidth").value = 128;
+	document.getElementById("targetHeight").value = 64;
 }
 
 document.getElementById('sourceFile').addEventListener('change', function(e) {
-	console.log("source changed.");
-	
 	document.getElementById("save").disabled = true;
 	
 	sourceImage = new Image();
-	sourceImage.addEventListener("load", function() {		
-		render();
-
+	sourceImage.addEventListener("load", function() {
 		document.getElementById("save").disabled = false;
 		document.getElementById("autoScale").disabled = false;
-		document.getElementById("keepAspectRatio").disabled = false;
+		document.getElementById("autoKeepAspectRatio").disabled = false;
 		document.getElementById("targetFile").disabled = false;
+	
+		updateWidthHeightRatio();
+		render();
 	});
 	
-	sourceImage.src = URL.createObjectURL(e.target.files[0]);
+	sourceImage.src = URL.createObjectURL(document.getElementById('sourceFile').files[0]);
 }, false);
 
-document.getElementById('autoScale').addEventListener('change', function() {
-	console.log("Auto-scale changed: " + document.getElementById("autoScale").checked);
-	
+document.getElementById('autoScale').addEventListener('change', function() {	
 	if(document.getElementById("autoScale").checked) {
-		document.getElementById("keepAspectRatio").disabled = false;
+		document.getElementById("autoKeepAspectRatio").disabled = false;
 		document.getElementById("targetWidth").disabled = true;
 		document.getElementById("targetHeight").disabled = true;
+		document.getElementById("manualKeepAspectRatio").disabled = true;
+		if(document.getElementById("autoKeepAspectRatio").checked) {
+			updateWidthHeightRatio();
+		} else {
+			updateWidthHeightFull();
+		}
 	} else {
-		document.getElementById("keepAspectRatio").disabled = true;
+		document.getElementById("autoKeepAspectRatio").disabled = true;
 		document.getElementById("targetWidth").disabled = false;
+		document.getElementById("manualKeepAspectRatio").disabled = false;
+		if(document.getElementById("manualKeepAspectRatio").checked) {
+			updateWidthHeightRatio();
+		} else {
+			document.getElementById("targetHeight").disabled = false;
+		}
+	}
+
+	render();
+}, false);
+
+document.getElementById("autoKeepAspectRatio").addEventListener('change', function() {
+	if(document.getElementById("autoKeepAspectRatio").checked) {
+		updateWidthHeightRatio();
+	} else {
+		updateWidthHeightFull();
+	}
+
+	render();
+}, false);
+
+document.getElementById("manualKeepAspectRatio").addEventListener('change', function() {
+	if(document.getElementById("manualKeepAspectRatio").checked) {
+		document.getElementById("targetHeight").disabled = true;
+		updateWidthHeightRatio();
+	} else {
 		document.getElementById("targetHeight").disabled = false;
 	}
 
 	render();
 }, false);
 
-document.getElementById("keepAspectRatio").addEventListener('change', function() {
-	console.log("Keep aspect-ratio changed: " + document.getElementById("keepAspectRatio").checked);
-
-	render();
-}, false);
-
 document.getElementById('targetWidth').addEventListener('input', function() {
-	console.log("Target width changed: " + document.getElementById("targetWidth").value);
+	var width = document.getElementById("targetWidth").value;
+
+	if(width > 128) {
+		document.getElementById("targetWidth").value = 128;
+	}
+
+	if(width < 0) {
+		document.getElementById("targetWidth").value = 0;
+	}
+
+	if(document.getElementById("manualKeepAspectRatio").checked) {
+		var widthHeightRatio = sourceImage.width / sourceImage.height;
+		var possibleHeight = Math.round(document.getElementById("targetWidth").value / widthHeightRatio);
+
+		if(possibleHeight <= 64) {
+			document.getElementById("targetHeight").value = possibleHeight;
+		} else {
+			document.getElementById("targetWidth").value = Math.round(64 * widthHeightRatio);
+		}
+	}
 
 	render();
 }, false);
 
 document.getElementById('targetHeight').addEventListener('input', function() {
-	console.log("Target height changed: " + document.getElementById("targetHeight").value);
+	var height = document.getElementById("targetHeight").value;
+
+	if(height > 64) {
+		document.getElementById("targetHeight").value = 64;
+	}
+
+	if(height < 0) {
+		document.getElementById("targetheight").value = 0;
+	}
 
 	render();
 }, false);
 
-document.getElementById('save').addEventListener('click', function() {
-	console.log("save file.");
-	
+document.getElementById('save').addEventListener('click', function() {	
 	var data = [];
+
+	var currentWidth = document.getElementById("targetWidth").value;
+	var currentHeight = document.getElementById("targetHeight").value;
 	
 	var canvas = document.getElementById("preview");
 	var context = canvas.getContext("2d");
@@ -182,7 +234,11 @@ document.getElementById('save').addEventListener('click', function() {
 			for(var currentY = y; currentY < y + 8; currentY++) {
 				encodedValue = (encodedValue << 1) | data[(currentY * currentWidth) + x];
 			}
-			encodedData.push("0x" + encodedValue.toString(16).toUpperCase() + ", ");
+			encodedData.push("0x" + encodedValue.toString(16).toUpperCase());
+			
+			if(x < currentWidth - 1) {
+				encodedData.push(", ");
+			}
 		}
 		encodedData.push("}");
 		if(y + 8 < currentHeight) {
@@ -212,15 +268,11 @@ document.getElementById('save').addEventListener('click', function() {
 	a.style = "display: none";
 	a.href = url;
 	a.download = targetFileName + ".h";
-
-	console.log("Saving to file named: " + a.download);
 	
 	document.body.appendChild(a);
 	a.click();
 	window.URL.revokeObjectURL(url);
 }, false);
-
-console.log("Page initialized.");
 </script>
 </body>
 </html>
